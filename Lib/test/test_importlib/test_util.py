@@ -577,7 +577,7 @@ class PEP3147Tests:
         with util.temporary_pycache_prefix(pycache_prefix):
             self.assertEqual(
                 self.util.cache_from_source(path, optimization=''),
-                expect)
+                os.path.normpath(expect))
 
     @unittest.skipIf(sys.implementation.cache_tag is None,
                      'requires sys.implementation.cache_tag to not be None')
@@ -657,14 +657,26 @@ class IncompatibleExtensionModuleRestrictionsTests(unittest.TestCase):
 
     def run_with_own_gil(self, script):
         interpid = _interpreters.create(isolated=True)
-        excsnap = _interpreters.run_string(interpid, script)
+        def ensure_destroyed():
+            try:
+                _interpreters.destroy(interpid)
+            except _interpreters.InterpreterNotFoundError:
+                pass
+        self.addCleanup(ensure_destroyed)
+        excsnap = _interpreters.exec(interpid, script)
         if excsnap is not None:
             if excsnap.type.__name__ == 'ImportError':
                 raise ImportError(excsnap.msg)
 
     def run_with_shared_gil(self, script):
         interpid = _interpreters.create(isolated=False)
-        excsnap = _interpreters.run_string(interpid, script)
+        def ensure_destroyed():
+            try:
+                _interpreters.destroy(interpid)
+            except _interpreters.InterpreterNotFoundError:
+                pass
+        self.addCleanup(ensure_destroyed)
+        excsnap = _interpreters.exec(interpid, script)
         if excsnap is not None:
             if excsnap.type.__name__ == 'ImportError':
                 raise ImportError(excsnap.msg)
